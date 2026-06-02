@@ -1,0 +1,61 @@
+{
+  "name": "codebop",
+  "displayName": "CodeBop",
+  "description": "Play ambient background music while you code. Create a calm, focused coding environment with seamless audio loops.",
+  "version": "0.0.1",
+  "publisher": "CodeBop",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "ambient",
+    "music",
+    "sound",
+    "code",
+    "productivity",
+    "background",
+    "audio",
+    "focus"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CodeBop/codebop"
+  },
+  "activationEvents": [
+    "onCommand:codebop.play",
+    "onCommand:codebop.stop",
+    "onCommand:codebop.openPanel"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codebop.play",
+        "title": "CodeBop: Play"
+      },
+      {
+        "command": "codebop.stop",
+        "title": "CodeBop: Stop"
+      },
+      {
+        "command": "codebop.openPanel",
+        "title": "CodeBop: Open Panel"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^18.x",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.0.0"
+  }
+}

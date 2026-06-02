@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
 
 export class CodeBopWebviewProvider {
 	private panel: vscode.WebviewPanel | undefined;
@@ -9,7 +8,6 @@ export class CodeBopWebviewProvider {
 	private currentTrack: string = 'Default: the_mountain-background-music-159125';
 	private currentTrackUri: string = '';
 	private isPlaying: boolean = false;
-	private userSoundsFolder: string | undefined;
 	private userTracks: string[] = [];
 
 	constructor(context: vscode.ExtensionContext) {
@@ -18,10 +16,18 @@ export class CodeBopWebviewProvider {
 		if (savedTrack) {
 			this.currentTrack = savedTrack;
 		}
-		const savedFolder = context.globalState.get<string>('codebop.soundsFolder');
-		if (savedFolder) {
-			this.userSoundsFolder = savedFolder;
-			this.scanUserFolder();
+		this.scanUserFolder();
+	}
+
+	private get soundsStorageUri(): vscode.Uri {
+		return vscode.Uri.joinPath(this.context.globalStorageUri, 'sounds');
+	}
+
+	private async ensureStorageExists() {
+		try {
+			await vscode.workspace.fs.createDirectory(this.soundsStorageUri);
+		} catch (e) {
+			// Ignore if directory already exists
 		}
 	}
 
@@ -69,7 +75,7 @@ export class CodeBopWebviewProvider {
 				retainContextWhenHidden: true,
 				localResourceRoots: [
 					vscode.Uri.joinPath(this.context.extensionUri, 'media'),
-					...(this.userSoundsFolder ? [vscode.Uri.file(this.userSoundsFolder)] : [])
+					this.soundsStorageUri
 				]
 			}
 		);
@@ -110,29 +116,38 @@ export class CodeBopWebviewProvider {
 
 	private async handleFolderSelection() {
 		const result = await vscode.window.showOpenDialog({
-			canSelectFiles: false,
-			canSelectFolders: true,
-			canSelectMany: false,
-			openLabel: 'Select Sounds Folder'
+			canSelectFiles: true,
+			canSelectFolders: false,
+			canSelectMany: true,
+			openLabel: 'Add Sound File(s)',
+			filters: {
+				'Audio/Video': ['mp3', 'mp4', 'wav', 'ogg', 'm4a', 'webm']
+			}
 		});
 
-		if (result && result[0]) {
-			this.userSoundsFolder = result[0].fsPath;
-			this.context.globalState.update('codebop.soundsFolder', this.userSoundsFolder);
-			this.scanUserFolder();
+		if (result && result.length > 0) {
+			await this.ensureStorageExists();
+			try {
+				for (const fileUri of result) {
+					const destUri = vscode.Uri.joinPath(this.soundsStorageUri, path.basename(fileUri.fsPath));
+					await vscode.workspace.fs.copy(fileUri, destUri, { overwrite: true });
+				}
+				vscode.window.showInformationMessage(`Added ${result.length} track(s) to CodeBop!`);
+				this.scanUserFolder();
+			} catch (err) {
+				vscode.window.showErrorMessage(`Failed to add tracks: ${err}`);
+			}
 		}
 	}
 
-	private scanUserFolder() {
-		if (!this.userSoundsFolder) {
-			return;
-		}
-
+	private async scanUserFolder() {
 		try {
-			const files = fs.readdirSync(this.userSoundsFolder);
+			await this.ensureStorageExists();
+			const files = await vscode.workspace.fs.readDirectory(this.soundsStorageUri);
+			
 			this.userTracks = files
-				.filter(file => file.toLowerCase().endsWith('.mp3'))
-				.map(file => path.join(this.userSoundsFolder!, file));
+				.filter(([name, type]) => type === vscode.FileType.File && name.toLowerCase().match(/\.(mp3|mp4|wav|ogg|m4a|webm)$/))
+				.map(([name]) => vscode.Uri.joinPath(this.soundsStorageUri, name).fsPath);
 
 			if (this.panel) {
 				const trackUris = this.userTracks.map(trackPath => {
@@ -149,7 +164,7 @@ export class CodeBopWebviewProvider {
 				});
 			}
 		} catch (error) {
-			vscode.window.showErrorMessage(`Failed to scan folder: ${error}`);
+			console.error(`Failed to scan storage: ${error}`);
 		}
 	}
 
@@ -164,7 +179,7 @@ export class CodeBopWebviewProvider {
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; media-src ${defaultTrackUri.replace(/[^/]*$/, '')}* vscode-webview-resource: https:; script-src 'unsafe-inline'; style-src 'unsafe-inline';">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; media-src vscode-webview-resource: https: data: blob:; script-src 'unsafe-inline'; style-src 'unsafe-inline';">
 	<title>CodeBop</title>
 	<style>
 		body {
@@ -249,7 +264,7 @@ export class CodeBopWebviewProvider {
 
 		<div class="controls">
 			<button id="playPauseBtn">${this.isPlaying ? 'Pause' : 'Play'}</button>
-			<button id="chooseFolderBtn">Choose My Sounds Folder</button>
+			<button id="chooseFolderBtn">Add Sounds...</button>
 		</div>
 	</div>
 

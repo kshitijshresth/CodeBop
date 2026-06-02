@@ -1,8 +1,8 @@
 {
-  "name": "codebop",
-  "displayName": "CodeBop",
+  "name": "codebop-vscode",
+  "displayName": "CodeBop - Ambient Sounds",
   "description": "Play ambient background music while you code. Create a calm, focused coding environment with seamless audio loops.",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "publisher": "CodeBop",
   "engines": {
     "vscode": "^1.80.0"

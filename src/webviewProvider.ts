@@ -164,6 +164,7 @@ export class CodeBopWebviewProvider {
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; media-src ${defaultTrackUri.replace(/[^/]*$/, '')}* vscode-webview-resource: https:; script-src 'unsafe-inline'; style-src 'unsafe-inline';">
 	<title>CodeBop</title>
 	<style>
 		body {
@@ -262,12 +263,23 @@ export class CodeBopWebviewProvider {
 		const audioPlayer = document.getElementById('audioPlayer');
 
 		let currentTrackUri = '${defaultTrackUri}';
+		
+		// Set audio source immediately
 		audioPlayer.src = currentTrackUri;
+		audioPlayer.load();
+		
+		// Add error handler
+		audioPlayer.addEventListener('error', (e) => {
+			console.error('Audio error:', e, audioPlayer.error);
+		});
 
 		playPauseBtn.addEventListener('click', () => {
 			if (audioPlayer.paused) {
-				audioPlayer.play().catch(err => {
+				audioPlayer.play().then(() => {
+					console.log('Playback started successfully');
+				}).catch(err => {
 					console.error('Playback failed:', err);
+					alert('Failed to play audio: ' + err.message);
 				});
 			} else {
 				audioPlayer.pause();
